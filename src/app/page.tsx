@@ -30,42 +30,83 @@ export default function Home() {
     },
   ]);
 
+  const [retrieveMode, setRetrieveMode] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   const handleSendMessage = (userMessage?: string) => {
-    if (inputValue.trim() || userMessage) {
-      // Add user's message
-      setMessages([...messages, { role: "user", content: userMessage || inputValue }]);
-      // Clear input field
-      setInputValue('');
-      
-      // Optionally, add a response from the assistant (this could be more complex, depending on your use case)
-      if (!userMessage) {
-        setTimeout(() => {
-          setMessages(prevMessages => [...prevMessages, { role: "assistant", content: "Sure, let me check that for you!" }]);
-        }, 1000);
-      }
-    }
-  };
+    const trimmedInput = userMessage || inputValue.trim();
+  
+    if (trimmedInput === '') return;
 
-  const handleRetrieveOrder = () => {
-    handleSendMessage("Retrieve order information");
-    setTimeout(() => {
-      setMessages(prevMessages => [...prevMessages, 
-        { role: "assistant", content: "Please provide your order number to proceed." }
+    console.log(`mode: ${retrieveMode}`)
+  
+    if (retrieveMode) {
+      // Handle order retrieval mode
+      handleOrderNumberSubmission(trimmedInput);
+    } else {
+      // Handle regular FAQ mode
+      setMessages(prevMessages => [
+        ...prevMessages,
+        { role: "user", content: trimmedInput },
       ]);
-    }, 1000);
+  
+      fetch('http://127.0.0.1:5000/faq', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ messages: [...messages, { role: "user", content: trimmedInput }] }),
+      })
+        .then(response => response.json())
+        .then(data => {
+          setMessages(prevMessages => [
+            ...prevMessages,
+            { role: "assistant", content: data.message || "Sorry, I couldn't find an answer to that." },
+          ]);
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          setMessages(prevMessages => [
+            ...prevMessages,
+            { role: "assistant", content: "Something went wrong. Please try again later." },
+          ]);
+        });
+    }
+  
+    setInputValue('');
   };
 
   const handleOrderNumberSubmission = (orderNumber: string) => {
-    // Simulate an API call
-    handleSendMessage(orderNumber);
-    setTimeout(() => {
-      setMessages(prevMessages => [...prevMessages, 
-        { role: "assistant", content: `Your order with number ${orderNumber} has been retrieved successfully!` }
-      ]);
-    }, 1000);
+    setMessages(prevMessages => [
+      ...prevMessages,
+      { role: "user", content: orderNumber },
+      // { role: "assistant", content: "Retrieving your order information..." },
+    ]);
+
+    fetch('http://127.0.0.1:5000/order-info', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ order_id: orderNumber }),
+    })
+      .then(response => response.json())
+      .then(data => {
+        setMessages(prevMessages => [
+          ...prevMessages,
+          { role: "assistant", content: data.message || "I couldn't retrieve your order information. Please check your order number and try again." },
+        ]);
+        setRetrieveMode(false); // Switch back to FAQ mode
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        setMessages(prevMessages => [
+          ...prevMessages,
+          { role: "assistant", content: "Something went wrong. Please try again later." },
+        ]);
+        setRetrieveMode(false); // Switch back to FAQ mode
+      });
   };
 
   useEffect(() => {
@@ -76,11 +117,7 @@ export default function Home() {
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      if (messages[messages.length - 1].content.includes("Please provide your order number")) {
-        handleOrderNumberSubmission(inputValue.trim());
-      } else {
-        handleSendMessage();
-      }
+      handleSendMessage();
     }
   };
 
@@ -95,7 +132,7 @@ export default function Home() {
           </div>
           <p className="text-gray-400 text-sm">Ready to help</p>
         </div>
-        
+
         {/* Chat area */}
         <div className="chat p-4 space-y-4 flex-1 min-h-[60dvh] max-h-[60dvh] overflow-y-auto">
           {messages.map((message, index) => (
@@ -108,7 +145,10 @@ export default function Home() {
         <div className="p-4 pb-3">
           <div className="flex flex-wrap gap-2">
             <button 
-              onClick={handleRetrieveOrder} 
+              onClick={() => {
+                setRetrieveMode(true);
+                handleSendMessage("Could you provide my order information?");
+              }} 
               className="w-full text-left bg-purple-800 hover:bg-opacity-75 bg-opacity-45 text-fuchsia-400 rounded-xl px-3 py-2 transition-colors flex gap-2 items-center"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -127,11 +167,11 @@ export default function Home() {
             placeholder="Type your message..." 
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            onKeyUp={handleKeyPress} // Send message on Enter key press
+            onKeyUp={handleKeyPress}
           />
           <button 
             className="bg-purple-600 rounded-r-full p-2 text-white"
-            onClick={() => handleSendMessage()}
+            onClick={() => handleSendMessage}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
