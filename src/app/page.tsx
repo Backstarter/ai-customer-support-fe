@@ -51,7 +51,7 @@ export default function Home() {
         { role: "user", content: trimmedInput },
       ]);
   
-      fetch('http://127.0.0.1:5000/faq', {
+      fetch('https://ai-customer-support-432321.ue.r.appspot.com/faq', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -84,7 +84,7 @@ export default function Home() {
       // { role: "assistant", content: "Retrieving your order information..." },
     ]);
 
-    fetch('http://127.0.0.1:5000/order-info', {
+    fetch('https://ai-customer-support-432321.ue.r.appspot.com/order-info', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
